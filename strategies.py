@@ -1,11 +1,23 @@
+import pandas as pd
 import backtrader as bt 
 
+def prepare_df(df):
+    df['date'] = pd.to_datetime(df['date'])
+
+    df['candle_fluctuation'] = df['high'] - df['close']
+    # daily_fluctuation = df.set_index('timestamp').groupby(pd.Grouper(freq='D'))['candle_fluctuation'].max()
+    df['daily_fluctuation'] = df.groupby(df['date'].dt.date)['candle_fluctuation'].transform('max')
+    df['previous_daily_fluctuation'] = df['daily_fluctuation'].shift(24)
+
+    df.dropna(subset=['previous_daily_fluctuation'], 
+            inplace=True)
+    return df
 
 class VolatilityStrategyV0(bt.Strategy):
     params = (
        ('vt_buy_pct', 0.8),
        ('vt_sell_pct', 0.9), 
-       ('stoploss_vltly', 0.5),  # 50% of volatility as stop loss
+
        )
     # 0.8 0.9  128251 
     # 0.3 0.9  129545
@@ -14,18 +26,15 @@ class VolatilityStrategyV0(bt.Strategy):
         self.close = self.data.close
         self.high = self.data.high
         self.low = self.data.low
+        self.pdf =self.data.previous_daily_fluctuation 
 
     def next(self):
         if len(self) ==1:
             return
-        
-        volatility = self.high[-1] - self.close[-1]
-    
-        buy_condition = self.close[0] > (self.close[-1] + volatility * self.params.vt_buy_pct)
-        sell_condition= self.close[0] < (self.close[-1] - volatility * self.params.vt_sell_pct)
+          
+        buy_condition = self.close[0] > (self.close[-1] + self.pdf * self.params.vt_buy_pct)
+        sell_condition= self.close[0] < (self.close[-1] - self.pdf * self.params.vt_sell_pct)
 
-        # buy_condition = self.close[0] > (self.open[0] + volatility * self.params.vt_buy_pct)
-        # sell_condition= self.close[0] < (self.open[0] - volatility * self.params.vt_sell_pct)
         
         if not self.position:
             if buy_condition:
@@ -40,12 +49,11 @@ class VolatilityStrategyV0(bt.Strategy):
     def stop(self):
         print(f"{self.params.vt_buy_pct}\n{self.params.vt_sell_pct}\n    {self.broker.getvalue()}")
 
-import backtrader as bt
-
 class VolatilityStrategyV1(bt.Strategy):
     params = (
         ('vt_buy_pct', 0.3),
         ('vt_sell_pct', 0.9),
+        ('vt_stoploss_pct', 0.5),  # 50% of volatility as stop loss
     )
     
     def __init__(self):
@@ -73,15 +81,15 @@ class VolatilityStrategyV1(bt.Strategy):
             if buy_condition:
                 # If buy condition met, buy and set the buy price and stop loss
                 self.buy_price = self.close[0]
-                self.stop_loss = self.buy_price - (volatility * self.params.stoploss_vltly)  # 50% of volatility as stop loss
+                self.stop_loss = self.buy_price - (volatility * self.params.vt_stoploss_pct)  # pct of volatility as stop loss
                 self.order = self.buy()
         else:
-            # If a position exists, check for sell condition or stop loss condition
+            # If a position exists, check for stop loss condition or sell condition
             if self.close[0] < self.stop_loss:
-                self.order = self.sell()
-            elif sell_condition :
-                self.order = self.sell()
+                self.order = self.sell(comment="Stop Loss")
+            elif sell_condition:
+                self.order = self.sell(comment="Sell Condition")
 
     def stop(self):
         # Output the final value of the portfolio
-        print(f"{self.params.vt_buy_pct}\n{self.params.vt_sell_pct}\n    {self.broker.getvalue()}")
+        print(f"{self.params.vt_buy_pct}\n{self.params.vt_sell_pct}\n                 {self.broker.getvalue()}")

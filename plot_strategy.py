@@ -3,22 +3,22 @@ import os
 from pathlib import Path
 import pandas as pd
 
-from strategies import VolatilityStrategyV1 as _Strategy
+from strategies import prepare_df
+from strategies import VolatilityStrategyV0 as _Strategy
 
-feather_file_path = Path(os.getcwd())/'data/BTC_USDT-1d.feather'
+feather_file_path = Path(os.getcwd())/'data'/'BTC_USDT-1h.feather'
 
 df = pd.read_feather(feather_file_path)
+df = prepare_df(df)
 df.set_index('date', inplace=True)
 
 class PandasData_Custom(bt.feeds.PandasData):
-    # 添加额外的'openinterest'列，如果没有这列可以忽略
-    lines = ('openinterest',)
+    lines = ('previous_daily_fluctuation',)
     params = (
-        ('openinterest', -1),
+        ('previous_daily_fluctuation', -1),
         # ('fromdate' ,datetime(2019, 1, 1)),
         # ('todate', datetime(2019, 2, 1)),
     )
-
 
 
 if True :
