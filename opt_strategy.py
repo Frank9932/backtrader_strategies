@@ -21,7 +21,7 @@ class PandasData_Custom(bt.feeds.PandasData):
     )
 
 
-if True :
+if __name__ == '__main__':
     cerebro = bt.Cerebro()
     cerebro.broker.setcash(100000)
     cerebro.broker.setcommission(commission=0.001)
