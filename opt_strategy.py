@@ -25,11 +25,18 @@ if __name__ == '__main__':
     cerebro = bt.Cerebro()
     cerebro.broker.setcash(100000)
     cerebro.broker.setcommission(commission=0.001)
+    
+    start = 1
+    end = 19  
+    
+    vt_buy_pct_range = [x * 0.1 for x in range(start, end + 1)]
+    vt_sell_pct_range = [x * 0.1 for x in range(start, end + 1)]
 
-    cerebro.optstrategy(_Strategy,
-                        vt_buy_pct=[x * 0.1 for x in range(10)],
-                        vt_sell_pct=[x * 0.1 for x in range(10)]
-                        )
+    cerebro.optstrategy(
+    _Strategy,
+    vt_buy_pct=vt_buy_pct_range,
+    vt_sell_pct=vt_sell_pct_range
+    )
 
     data_feed = PandasData_Custom(dataname=df)
     cerebro.adddata(data_feed)
