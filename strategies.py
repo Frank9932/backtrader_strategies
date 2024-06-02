@@ -5,7 +5,6 @@ def prepare_df(df):
     df['date'] = pd.to_datetime(df['date'])
 
     df['candle_fluctuation'] = df['high'] - df['close']
-    # daily_fluctuation = df.set_index('timestamp').groupby(pd.Grouper(freq='D'))['candle_fluctuation'].max()
     df['daily_fluctuation'] = df.groupby(df['date'].dt.date)['candle_fluctuation'].transform('max')
     df['previous_daily_fluctuation'] = df['daily_fluctuation'].shift(24)
 
@@ -27,6 +26,21 @@ class VolatilityStrategyV0(bt.Strategy):
         self.high = self.data.high
         self.low = self.data.low
         self.pdf =self.data.previous_daily_fluctuation 
+        
+        self.order = None
+        self.trade_count = 0
+        self.win_count = 0
+        self.loss_count = 0
+        self.total_profit = 0.0
+
+    def notify_trade(self, trade):
+        if trade.isclosed:
+            self.trade_count += 1
+            self.total_profit += trade.pnl  # pnl is profit and loss for this trade
+            if trade.pnl > 0:
+                self.win_count += 1
+            elif trade.pnl < 0:
+                self.loss_count +=1
 
     def next(self):
         if len(self) ==1:
@@ -47,7 +61,21 @@ class VolatilityStrategyV0(bt.Strategy):
     #     dt = self.datas[0].datetime.date(0)
     #     print("{}-------- {}".format(dt.isoformat(), txt))
     def stop(self):
-        print(f"{self.params.vt_buy_pct}\n{self.params.vt_sell_pct}\n    {self.broker.getvalue()}")
+        if self.trade_count > 0:
+            win_rate = (self.win_count / self.trade_count) * 100
+            average_profit = self.total_profit / self.trade_count
+        else:
+            win_rate = 0.0
+            average_profit = 0.0
+
+        # 输出最终值
+        print(f"Buy Threshold: {self.params.vt_buy_pct}\nSell Threshold: {self.params.vt_sell_pct}")
+        print(f"Final Portfolio Value: {self.broker.getvalue()}")
+        print(f"Total Trades: {self.trade_count}")
+        print(f"Winning Trades: {self.win_count}")
+        print(f"Win Rate: {win_rate:.2f}%")
+        print(f"Total Profit: {self.total_profit:.2f}")
+        print(f"Average Profit per Trade: {average_profit:.2f}")
 
 class VolatilityStrategyV1(bt.Strategy):
     params = (
@@ -92,4 +120,4 @@ class VolatilityStrategyV1(bt.Strategy):
 
     def stop(self):
         # Output the final value of the portfolio
-        print(f"{self.params.vt_buy_pct}\n{self.params.vt_sell_pct}\n                 {self.broker.getvalue()}")
+        print(f"{self.params.vt_buy_pct}\n{self.params.vt_sell_pct}\n {self.broker.getvalue()}")

@@ -1,3 +1,4 @@
+import argparse
 import backtrader as bt 
 import os
 from pathlib import Path
@@ -22,15 +23,20 @@ class PandasData_Custom(bt.feeds.PandasData):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Run backtesting with dynamic start and end parameters.')
+    parser.add_argument('-s','--start', type=int, help='Start point of the parameter range.')
+    parser.add_argument('-e','--end', type=int, help='End point of the parameter range.')
+    
+    args = parser.parse_args()
+    start = args.start
+    end = args.end
+
     cerebro = bt.Cerebro()
     cerebro.broker.setcash(100000)
     cerebro.broker.setcommission(commission=0.001)
-    
-    start = 1
-    end = 19  
-    
-    vt_buy_pct_range = [x * 0.1 for x in range(start, end + 1)]
-    vt_sell_pct_range = [x * 0.1 for x in range(start, end + 1)]
+ 
+    vt_buy_pct_range = [round(x * 0.1,1) for x in range(start, end + 1)]
+    vt_sell_pct_range = [round(x * 0.1,1) for x in range(start, end + 1)]
 
     cerebro.optstrategy(
     _Strategy,
@@ -41,6 +47,4 @@ if __name__ == '__main__':
     data_feed = PandasData_Custom(dataname=df)
     cerebro.adddata(data_feed)
 
-
-    
     results = cerebro.run()
